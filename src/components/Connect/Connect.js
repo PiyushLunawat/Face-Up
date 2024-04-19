@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import "./Connect.css";
 import {
   createClient,
@@ -7,6 +7,8 @@ import {
   onCameraChanged,
   onMicrophoneChanged
 } from "agora-rtc-sdk-ng/esm";
+
+import AgoraRTC from 'agora-rtc-sdk-ng';
 
 onCameraChanged((device) => {
   console.log("onCameraChanged: ", device);
@@ -30,7 +32,7 @@ function ConnectView() {
     appid.current = "25a5b059752d464ab8d79cc54021370b";
   }
   if (!token.current) {
-    token.current = "007eJxTYKhP7ckw/zjvcPMKQWWOM9Mru250hjOV+9ey9x3m1E7uqlBgMDJNNE0yMLU0NzVKMTEzSUyySDG3TE42NTEwMjQ2N0hi8pFLawhkZDC8VsXKyACBID4LQ1B+fi4DAwCe2Rwo";
+    token.current = "007eJxTYLjGx+vV+StW+XjKRVlLc+Gzd0Jc1c+WbKy78DCt81+12EEFBiPTRNMkA1NLc1OjFBMzk8QkixRzy+RkUxMDI0Njc4Ok32sU0xoCGRlO67exMDJAIIjPwhCUn5/LwAAAJpkfCQ==";
   }
   if (!channel.current) {
     channel.current = "Room";
@@ -40,7 +42,6 @@ function ConnectView() {
   const [isAudioPubed, setIsAudioPubed] = useState(false);
   const [isVideoPubed, setIsVideoPubed] = useState(false);
   const [isVideoSubed, setIsVideoSubed] = useState(false);
-
   const turnOnCamera = async (flag) => {
     flag = flag ?? !isVideoOn;
     setIsVideoOn(flag);
@@ -67,14 +68,17 @@ function ConnectView() {
   const [isJoined, setIsJoined] = useState(false);
 
   const joinChannel = async () => {
-
-
     if (isJoined) {
-      await leaveChannel();
+      const confirmLeave = window.confirm("You are already in a channel. Do you want to leave and join a new channel?");
+      if (confirmLeave) {
+        await leaveChannel();
+      } else {
+        return;
+      }
     }
-
+  
     client.on("user-published", onUserPublish);
-
+  
     await client.join(
       appid.current,
       channel.current,
@@ -82,18 +86,17 @@ function ConnectView() {
       null
     );
     setIsJoined(true);
-
-    await Promise.all([turnOnCamera(true), turnOnMicrophone(true)]);
-    await client.publish([videoTrack, audioTrack]);
-    setIsVideoPubed(true);
-    setIsAudioPubed(true);
   };
-
+  
+  
   const leaveChannel = async () => {
     window.location.reload();
   };
 
-  const onUserPublish = async (user, mediaType) => {
+  const onUserPublish = async (
+    user,
+    mediaType
+  ) => {
     if (mediaType === "video") {
       const remoteTrack = await client.subscribe(user, mediaType);
       remoteTrack.play("remote-video");
@@ -102,14 +105,35 @@ function ConnectView() {
     if (mediaType === "audio") {
       const remoteTrack = await client.subscribe(user, mediaType);
       remoteTrack.play();
+      alert('User has connected the call');
     }
+  };
+
+  const publishVideo = async () => {
+    await Promise.all([turnOnCamera(), turnOnMicrophone()]);
+    if (!isJoined) {
+      await joinChannel();
+    }
+    await client.publish([videoTrack,audioTrack]);
+    setIsVideoPubed(true);
+    setIsAudioPubed(true);
+
+  };
+
+  const publishAudio = async () => {
+    await turnOnMicrophone(true);
+    if (!isJoined) {
+      await joinChannel();
+    }
+    await client.publish(audioTrack);
+    setIsAudioPubed(true);
   };
 
   return (
     <>
       <div className="left-side">
         <div className="buttons">
-          {isJoined && <><button onClick={() => turnOnCamera()} className={isVideoOn ? "button-on" : ""}>
+          {(isAudioPubed||isVideoPubed) && <><button onClick={() => turnOnCamera()} className={isVideoOn ? "button-on" : ""}>
             Turn {isVideoOn ? "off" : "on"} camera
           </button>
           <button onClick={() => turnOnMicrophone()} className={isAudioOn ? "button-on" : ""}>
@@ -117,12 +141,19 @@ function ConnectView() {
           </button></>}
         </div>
         <div className="buttons">
-          <button onClick={joinChannel} className={isJoined ? "button-on" : ""}>
-            {isJoined ? "Leave Channel" : "Join Channel"}
+        {!isJoined && <><button onClick={joinChannel} className={isJoined ? "button-on" : ""}>
+            Join Channel
+          </button></>}
+          {(!(isAudioPubed||isVideoPubed)&&isJoined) && <><button onClick={publishVideo}className={isVideoPubed ? "button-on" : ""}>
+            Video Call
           </button>
+          <button onClick={publishAudio} className={isAudioPubed ? "button-on" : ""}>
+            Audio Call
+          </button></>}
+          {(isAudioPubed||isVideoPubed) && <><button onClick={leaveChannel}>Leave Call</button></>}
         </div>
       </div>
-      <div className="right-side">
+     {isJoined && <div className="right-side">
         <video id="camera-video" hidden={isVideoOn ? false : true}></video>
         <video id="remote-video" hidden={isVideoSubed ? false : true}></video>
         {isJoined && !isVideoSubed ? (
@@ -130,7 +161,7 @@ function ConnectView() {
             You can share channel {channel.current} with others.....
           </div>
         ) : null}
-      </div>
+      </div>}
     </>
   );
 }

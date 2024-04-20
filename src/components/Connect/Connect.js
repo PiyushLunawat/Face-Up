@@ -32,7 +32,7 @@ function ConnectView() {
     appid.current = "25a5b059752d464ab8d79cc54021370b";
   }
   if (!token.current) {
-    token.current = "007eJxTYLjGx+vV+StW+XjKRVlLc+Gzd0Jc1c+WbKy78DCt81+12EEFBiPTRNMkA1NLc1OjFBMzk8QkixRzy+RkUxMDI0Njc4Ok32sU0xoCGRlO67exMDJAIIjPwhCUn5/LwAAAJpkfCQ==";
+    token.current = "007eJxTYPBnu720O+ThWekzsntU9jWr+d4VnPkhKmML12rl860s/ysVGIxME02TDEwtzU2NUkzMTBKTLFLMLZOTTU0MjAyNzQ2SXjsopzUEMjL8TshiYWSAQBCfhSEoPz+XgQEAKl4ewA==";
   }
   if (!channel.current) {
     channel.current = "Room";
@@ -97,15 +97,38 @@ function ConnectView() {
     user,
     mediaType
   ) => {
+    
     if (mediaType === "video") {
       const remoteTrack = await client.subscribe(user, mediaType);
       remoteTrack.play("remote-video");
       setIsVideoSubed(true);
+      const confirmSubscribe = window.confirm(`User ${user.uid} wants to share their ${mediaType}. Do you want to accept?`);
+  
+      if (!confirmSubscribe) {
+        alert('User has Declined the call');
+        return; // If the user declines, do nothing
+      }
+      else{
+        await publishVideo();
+        setIsVideoPubed(true);
+        setIsAudioPubed(true);
+      alert('User has connected the call');
+      }
     }
     if (mediaType === "audio") {
       const remoteTrack = await client.subscribe(user, mediaType);
-      remoteTrack.play();
+      remoteTrack.play();  
+      const confirmSubscribe = window.confirm(`User ${user.uid} wants to share their ${mediaType}. Do you want to accept?`);
+  
+      if (!confirmSubscribe) {
+        alert('User has Declined the call');
+        return; // If the user declines, do nothing
+      }
+      else{
+        const remoteTrack = await client.subscribe(user, mediaType);
+      remoteTrack.play();  
       alert('User has connected the call');
+      }
     }
   };
 
